@@ -1,0 +1,296 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Sesión 1A — Consolidación (Aleatoria + Diagnóstico)</title>
+  <style>
+    body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif; line-height:1.35; margin:24px; max-width:980px}
+    h1{font-size:1.5rem; margin:0 0 8px}
+    .muted{opacity:.75}
+    .card{border:1px solid #ddd; border-radius:12px; padding:16px; margin:14px 0}
+    .row{display:flex; gap:10px; flex-wrap:wrap; align-items:center}
+    input[type="text"]{padding:6px 8px; border:1px solid #ccc; border-radius:8px; min-width:160px}
+    select{padding:6px 8px; border:1px solid #ccc; border-radius:8px}
+    button{padding:10px 14px; border:1px solid #222; background:#fff; border-radius:10px; cursor:pointer}
+    button:hover{background:#f6f6f6}
+    .ok{outline:3px solid #7ddc7d}
+    .bad{outline:3px solid #ff9a9a}
+    .feedback{margin-top:10px; font-weight:600}
+    .small{font-size:.95rem}
+    .kbd{font-family:ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; border:1px solid #ddd; border-radius:8px; padding:2px 6px}
+    .dropzone{min-height:48px; padding:10px; border:1px dashed #aaa; border-radius:12px}
+    .draggable{display:inline-block; padding:8px 10px; border:1px solid #bbb; border-radius:10px; margin:6px 6px 0 0; cursor:grab}
+    .hint{margin-top:6px}
+    .scorebox{font-size:1.1rem}
+    .badge{display:inline-block; padding:2px 8px; border:1px solid #ddd; border-radius:999px; font-size:.85rem; margin-left:6px}
+    .warn{border:1px solid #f1c40f; background:#fff9db; border-radius:12px; padding:12px}
+    .good{border:1px solid #7ddc7d; background:#f0fff0; border-radius:12px; padding:12px}
+    #app{display:none}
+  </style>
+</head>
+<body>
+  <h1>Sesión 1A — Actividad de consolidación (aleatoria)</h1>
+
+  <!-- Visible POR DEFECTO. Si el JS se ejecuta, este aviso se ocultará. -->
+  <div id="diagnostic" class="card warn">
+    <h2>Si no puedes escribir… esto es lo que pasa</h2>
+    <p class="small">
+      Esta actividad necesita modo interactivo. Si la abres en <b>vista previa de Google Drive</b> (o dentro de un visor),
+      suele verse bien pero <b>no deja rellenar</b>.
+    </p>
+    <ol class="small">
+      <li><b>Descarga</b> el archivo a tu ordenador (o Chromebook).</li>
+      <li>Ábrelo con <b>Chrome</b> o <b>Edge</b>: <span class="kbd">clic derecho → Abrir con → Chrome</span></li>
+      <li>En móvil/iPad puede dar guerra: mejor ordenador.</li>
+    </ol>
+    <p class="small muted">Cuando el modo interactivo se active, verás un mensaje verde y este aviso desaparecerá.</p>
+  </div>
+
+  <div id="app">
+    <p class="good small"><b>✅ Modo interactivo activado.</b> Ya puedes rellenar y corregir.</p>
+    <p class="muted small">
+      Auto-corrección inmediata. Cada vez que se abre el archivo, el orden de preguntas y casos cambia
+      <span class="badge">anticopia</span>.
+    </p>
+
+    <div class="card">
+      <h2>1) Completa los huecos <span class="muted small">(10 puntos)</span></h2>
+      <p class="small">Consejo: escribe una sola palabra. Se aceptan respuestas con o sin tildes.</p>
+      <ol class="small" id="fillBlanks"></ol>
+      <div class="feedback" id="fb1"></div>
+    </div>
+
+    <div class="card">
+      <h2>2) Ordena los principios <span class="muted small">(3 puntos)</span></h2>
+      <p class="small">Arrastra para ordenar el proceso lógico de protección radiológica en una práctica.</p>
+      <div class="dropzone" id="orderZone" aria-label="Zona de orden"></div>
+      <p class="hint muted small">Pista: primero se decide si merece la pena, luego se minimiza, y por último se respetan límites.</p>
+      <div class="feedback" id="fb2"></div>
+    </div>
+
+    <div class="card">
+      <h2>3) Verdadero / Falso <span class="muted small">(6 puntos)</span></h2>
+      <div class="small" id="vfBlock"></div>
+      <div class="feedback" id="fb3"></div>
+    </div>
+
+    <div class="card">
+      <h2>4) ¿Qué principio encaja mejor? <span class="muted small">(6 puntos)</span></h2>
+      <p class="small">Elige el principio que mejor se ajusta a cada situación.</p>
+      <ol class="small" id="principlesBlock"></ol>
+      <div class="feedback" id="fb4"></div>
+    </div>
+
+    <div class="card">
+      <h2>Resultado</h2>
+      <div class="row">
+        <button id="checkBtn">Corregir ahora</button>
+        <button id="resetBtn">Reiniciar (genera nueva versión)</button>
+      </div>
+      <p class="scorebox" id="score"></p>
+      <p class="muted small">Si tu profe te lo pide: captura de pantalla del resultado final.</p>
+    </div>
+  </div>
+
+<script>
+  // Si este script se ejecuta, activamos app y ocultamos aviso.
+  (function boot(){
+    const diag = document.getElementById("diagnostic");
+    const app  = document.getElementById("app");
+    if(app) app.style.display = "block";
+    if(diag) diag.style.display = "none";
+  })();
+
+  const normalize = (s) => (s || "")
+    .toString()
+    .trim()
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "");
+
+  const shuffle = (arr) => {
+    for (let i = arr.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [arr[i], arr[j]] = [arr[j], arr[i]];
+    }
+    return arr;
+  };
+
+  function clearMarks(){
+    document.querySelectorAll(".ok,.bad").forEach(el => el.classList.remove("ok","bad"));
+    ["fb1","fb2","fb3","fb4","score"].forEach(id => { const el=document.getElementById(id); if(el) el.textContent=""; });
+  }
+
+  const blanks = [
+    {text: `Los efectos <b>deterministas</b> tienen dosis <span class="kbd">_____</span> y su gravedad aumenta con la dosis.`, ans:"umbral"},
+    {text: `Los efectos <b>estocásticos</b> no tienen umbral y aumenta la <span class="kbd">_____</span> de que aparezcan.`, ans:"probabilidad"},
+    {text: `El principio de <span class="kbd">_____</span> exige que la exposición aporte un beneficio neto.`, ans:"justificación"},
+    {text: `El principio ALARA pertenece al principio de <span class="kbd">_____</span>.`, ans:"optimización"},
+    {text: `La <span class="kbd">_____</span> de dosis protege a trabajadores y público (no al paciente).`, ans:"limitación"},
+    {text: `ALARA significa “As Low As Reasonably <span class="kbd">_____</span>”.`, ans:"achievable"},
+    {text: `En general, <span class="kbd">_____</span> no tiene límites de dosis fijados por ley.`, ans:"paciente"},
+    {text: `Los límites se aplican a <span class="kbd">_____</span> expuestos y al público.`, ans:"trabajadores"},
+    {text: `Objetivo 1 de la PR: evitar que ocurran efectos <span class="kbd">_____</span>.`, ans:"deterministas"},
+    {text: `Objetivo 2 de la PR: reducir el riesgo de efectos <span class="kbd">_____</span> todo lo razonable.`, ans:"estocásticos"},
+  ];
+
+  const principlesOrder = [
+    {label:"Justificación", order:1},
+    {label:"Optimización (ALARA)", order:2},
+    {label:"Limitación de dosis", order:3},
+  ];
+
+  const vfItems = [
+    {id:"A", text:"Estar por debajo de los límites elimina el riesgo estocástico.", key:"F"},
+    {id:"B", text:"Los efectos deterministas tienen umbral.", key:"V"},
+    {id:"C", text:"El principio ALARA forma parte de la optimización.", key:"V"},
+    {id:"D", text:"La limitación de dosis se aplica al paciente igual que al público.", key:"F"},
+    {id:"E", text:"Justificación = “usar radiación solo si aporta beneficio neto”.", key:"V"},
+    {id:"F", text:"En efectos estocásticos, la gravedad aumenta con la dosis.", key:"F"},
+  ];
+
+  const cases = [
+    {text:"Se solicita una TC “por si acaso”, sin indicación clínica clara.", ans:"Justificación"},
+    {text:"Se repite una radiografía porque el paciente estaba mal colocado y no se usó inmovilización.", ans:"Optimización"},
+    {text:"Un trabajador supera el límite anual legal por mala planificación de turnos.", ans:"Limitación"},
+    {text:"Se ajusta el protocolo para bajar mAs sin perder calidad diagnóstica.", ans:"Optimización"},
+    {text:"Se decide no realizar una exploración porque existe alternativa no ionizante con igual rendimiento clínico.", ans:"Justificación"},
+    {text:"Se controla con dosimetría que las dosis ocupacionales no superen límites.", ans:"Limitación"},
+  ];
+
+  function attachDnD(){
+    const zone = document.getElementById("orderZone");
+    let dragEl = null;
+    zone.querySelectorAll(".draggable").forEach(el=>{
+      el.addEventListener("dragstart", (e)=>{
+        dragEl = e.target;
+        e.dataTransfer.effectAllowed = "move";
+      });
+    });
+    zone.addEventListener("dragover", (e)=>{
+      e.preventDefault();
+      const target = e.target.closest(".draggable");
+      if(!target || target===dragEl) return;
+      const rect = target.getBoundingClientRect();
+      const next = (e.clientX - rect.left) / rect.width > 0.5;
+      zone.insertBefore(dragEl, next ? target.nextSibling : target);
+    });
+    zone.addEventListener("drop", (e)=> e.preventDefault());
+  }
+
+  function renderAll(){
+    clearMarks();
+
+    const fill = document.getElementById("fillBlanks");
+    fill.innerHTML = "";
+    shuffle([...blanks]).forEach(item=>{
+      const li = document.createElement("li");
+      li.innerHTML = `${item.text}<br><input type="text" data-answer="${item.ans}" placeholder="Respuesta">`;
+      fill.appendChild(li);
+    });
+
+    const zone = document.getElementById("orderZone");
+    zone.innerHTML = "";
+    shuffle([...principlesOrder]).forEach(it=>{
+      const span = document.createElement("span");
+      span.className = "draggable";
+      span.draggable = true;
+      span.dataset.order = it.order;
+      span.textContent = it.label;
+      zone.appendChild(span);
+    });
+
+    const vf = document.getElementById("vfBlock");
+    vf.innerHTML = "";
+    shuffle([...vfItems]).forEach((q)=>{
+      const p = document.createElement("p");
+      const name = `vf_${q.id}`;
+      p.innerHTML = `<b>${q.id}.</b> ${q.text}<br>
+        <label><input type="radio" name="${name}" value="V"> Verdadero</label>
+        <label><input type="radio" name="${name}" value="F"> Falso</label>`;
+      p.dataset.key = q.key;
+      p.dataset.name = name;
+      vf.appendChild(p);
+    });
+
+    const pb = document.getElementById("principlesBlock");
+    pb.innerHTML = "";
+    shuffle([...cases]).forEach(item=>{
+      const li = document.createElement("li");
+      li.innerHTML = `${item.text}<br>
+        <select data-answer="${item.ans}">
+          <option value="">— Elige —</option>
+          <option>Justificación</option>
+          <option>Optimización</option>
+          <option>Limitación</option>
+        </select>`;
+      pb.appendChild(li);
+    });
+
+    attachDnD();
+  }
+
+  function check(){
+    clearMarks();
+    let score = 0, max = 0;
+
+    const inputs = document.querySelectorAll('#fillBlanks input[type="text"][data-answer]');
+    let ok1 = 0;
+    inputs.forEach(inp=>{
+      max += 1;
+      const ans = normalize(inp.dataset.answer);
+      const val = normalize(inp.value);
+      if(val === ans){ inp.classList.add("ok"); ok1++; score++; }
+      else inp.classList.add("bad");
+    });
+    document.getElementById("fb1").textContent = `Huecos: ${ok1}/${inputs.length}`;
+
+    max += 3;
+    const zone = document.getElementById("orderZone");
+    const items = [...zone.querySelectorAll(".draggable")];
+    const correct = items.every((el, idx)=> parseInt(el.dataset.order,10) === idx+1);
+    if(correct){
+      score += 3;
+      items.forEach(el=>el.classList.add("ok"));
+      document.getElementById("fb2").textContent = "Orden: 3/3";
+    }else{
+      items.forEach(el=>el.classList.add("bad"));
+      document.getElementById("fb2").textContent = "Orden: 0/3 (revisa el orden lógico)";
+    }
+
+    const ps = document.querySelectorAll("#vfBlock p[data-name]");
+    let ok3 = 0;
+    ps.forEach(p=>{
+      max += 1;
+      const name = p.dataset.name;
+      const key = p.dataset.key;
+      const chosen = document.querySelector(`input[name="${name}"]:checked`);
+      if(chosen && chosen.value === key){
+        ok3++; score++; p.classList.add("ok");
+      }else{
+        p.classList.add("bad");
+      }
+    });
+    document.getElementById("fb3").textContent = `V/F: ${ok3}/${ps.length}`;
+
+    const selects = document.querySelectorAll('#principlesBlock select[data-answer]');
+    let ok4 = 0;
+    selects.forEach(sel=>{
+      max += 1;
+      if(sel.value === sel.dataset.answer){
+        ok4++; score++; sel.classList.add("ok");
+      }else sel.classList.add("bad");
+    });
+    document.getElementById("fb4").textContent = `Principios: ${ok4}/${selects.length}`;
+
+    document.getElementById("score").textContent = `Puntuación: ${score} / ${max}. (Actividad de práctica; no se califica)`;
+  }
+
+  document.getElementById("checkBtn").addEventListener("click", check);
+  document.getElementById("resetBtn").addEventListener("click", ()=> renderAll());
+
+  renderAll();
+</script>
+</body>
+</html>
